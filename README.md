@@ -1,258 +1,236 @@
-# Build Club Smart Attendance System
+<div align="center">
 
-**AI-powered presence and session tracking for modern makerspaces.**
+# 🎯 Build Club Smart Attendance System
 
-A computer-vision-based attendance system that goes beyond simple check-ins. Instead of just recording "present" or "absent," it tracks how long a member actually spends in the space — using a webcam, face recognition, and automatic entry/exit detection.
+### AI-powered presence & session tracking for modern makerspaces
 
-```
-        Webcam
-           ↓
-   Face Detection
-           ↓
-   Face Recognition
-           ↓
-    Member Identity
-           ↓
-    ENTRY Detection
-           ↓
-   Session Tracking
-           ↓
- Attendance Database
-           ↓
- Dashboard / Analytics
-```
+[![Python](https://img.shields.io/badge/Python-3.9+-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
+[![OpenCV](https://img.shields.io/badge/OpenCV-Computer%20Vision-5C3EE8?style=for-the-badge&logo=opencv&logoColor=white)](https://opencv.org/)
+[![face_recognition](https://img.shields.io/badge/face__recognition-dlib-FF6F61?style=for-the-badge)](https://github.com/ageitgey/face_recognition)
+[![FastAPI](https://img.shields.io/badge/FastAPI-Backend-009688?style=for-the-badge&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
+[![SQLite](https://img.shields.io/badge/SQLite-Database-003B57?style=for-the-badge&logo=sqlite&logoColor=white)](https://www.sqlite.org/)
+[![Streamlit](https://img.shields.io/badge/Streamlit-Dashboard-FF4B4B?style=for-the-badge&logo=streamlit&logoColor=white)](https://streamlit.io/)
 
-> **Status:** Working prototype / development-stage system. Webcam recognition and attendance-event generation have been tested successfully in practice (see [Current Status](#current-status)).
+[![Status](https://img.shields.io/badge/status-working%20prototype-yellow?style=flat-square)](#current-status)
+[![License](https://img.shields.io/badge/license-not%20yet%20specified-lightgrey?style=flat-square)](#license)
+
+**A camera watches the door. A face gets recognized. A session gets tracked — start to finish.**
+
+</div>
 
 ---
 
-## Table of Contents
+Traditional makerspace attendance means sign-in sheets nobody fills out honestly, no idea how long people actually stayed, and zero real analytics. This system replaces that with webcam-based face recognition that detects **when a member arrives, tracks their presence while they're there, and logs when they actually leave** — session duration included.
 
-- [Problem](#problem)
-- [Solution](#solution)
-- [Key Features](#key-features)
-- [System Architecture](#system-architecture)
-- [AI / Computer Vision Pipeline](#ai--computer-vision-pipeline)
-- [Presence & Session Tracking](#presence--session-tracking)
-- [Backend Architecture](#backend-architecture)
-- [Database](#database)
-- [Project Structure](#project-structure)
-- [Installation](#installation)
-- [Dataset Setup](#dataset-setup)
-- [Configuration](#configuration)
-- [Example Attendance Flow](#example-attendance-flow)
-- [Tech Stack](#tech-stack)
-- [Performance Considerations](#performance-considerations)
-- [Privacy & Security](#privacy--security)
-- [Current Status](#current-status)
-- [Known Limitations](#known-limitations)
-- [Future Roadmap](#future-roadmap)
-- [Why This Project Matters](#why-this-project-matters)
-- [Testing](#testing)
-- [Contributing](#contributing)
-- [License](#license)
-- [Author / Team](#author--team)
+```
+   📷 Webcam  →  🔍 Detection  →  🧠 Recognition  →  🪪 Identity
+        ↓
+   🟢 ENTRY  →  ⏱️ Session Tracking  →  🚪 EXIT  →  🗄️ Database  →  📊 Dashboard
+```
+
+> **Status:** 🟡 Working prototype. Webcam recognition and attendance-event generation have been tested successfully — see [Current Status](#-current-status).
 
 ---
 
-## Problem
+## 📑 Contents
 
-Attendance tracking in physical makerspaces and collaborative labs is typically handled manually — sign-in sheets, spreadsheets, or honor-system logging. This approach has real limitations:
+<table>
+<tr>
+<td valign="top" width="33%">
 
-- **Manual entry** is slow and easy to skip
-- **Inaccurate records** — people forget to sign in or out
-- **No real session-duration data** — a signature tells you someone showed up, not how long they actually worked
-- **Difficult analytics** — paper or ad-hoc spreadsheets don't scale into usable insight
-- **Poor scalability** — the process doesn't improve as membership grows
+- [Problem & Solution](#-problem--solution)
+- [Key Features](#-key-features)
+- [System Architecture](#️-system-architecture)
+- [AI / CV Pipeline](#-ai--computer-vision-pipeline)
+- [Presence Tracking](#-presence--session-tracking)
 
-## Solution
+</td>
+<td valign="top" width="33%">
 
-The Build Club Smart Attendance System automates this using computer vision. A standard laptop or USB webcam watches the entrance to the space. When a registered member's face is recognized, the system:
+- [Backend & Database](#-backend--database)
+- [Project Structure](#-project-structure)
+- [Installation](#-installation)
+- [Dataset Setup](#-dataset-setup)
+- [Configuration](#️-configuration)
 
-1. Identifies the member from a pre-built face-encoding dataset
-2. Logs an **ENTRY** event
-3. Continuously tracks their **presence** while they remain in view (with tolerance for brief absences)
-4. Detects when they've actually left and logs an **EXIT**
-5. Calculates and persists the **session duration**
+</td>
+<td valign="top" width="33%">
 
-The goal isn't just "was this person here today" — it's "how long were they actually here."
+- [Tech Stack](#-tech-stack)
+- [Privacy & Security](#-privacy--security)
+- [Limitations & Roadmap](#-known-limitations)
+- [Testing](#-testing)
+- [License & Author](#-license)
 
-## Key Features
+</td>
+</tr>
+</table>
 
-- Webcam-based, real-time face detection and recognition
-- Recognition against a dataset of registered members
-- Automatic **ENTRY** detection when a known member appears
-- Automatic **EXIT** detection after a configurable grace period of continuous absence
-- Session-duration tracking (not just binary present/absent)
-- Attendance persistence to a database
-- Backend/API layer intended to connect recognition events to storage and a dashboard
-- Dashboard/analytics components for reviewing attendance data
-- Basic handling of unrecognized ("unknown") faces
-- Event logging for recognition and attendance actions
+---
 
-## System Architecture
+## 💡 Problem & Solution
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                         CAMERA LAYER                             │
-│              Webcam capture (OpenCV VideoCapture)                │
-└──────────────────────────────┬────────────────────────────────┘
-                                 │ raw frames
-┌──────────────────────────────▼────────────────────────────────┐
-│                    COMPUTER VISION LAYER                         │
-│           Face detection on incoming frames (OpenCV /            │
-│                    face_recognition / dlib)                      │
-└──────────────────────────────┬────────────────────────────────┘
-                                 │ face locations
-┌──────────────────────────────▼────────────────────────────────┐
-│                      RECOGNITION LAYER                           │
-│      Face encoding + matching against known member encodings     │
-└──────────────────────────────┬────────────────────────────────┘
-                                 │ identified member (or "unknown")
-┌──────────────────────────────▼────────────────────────────────┐
-│               PRESENCE / SESSION TRACKING LAYER                  │
-│    ENTRY detection, continuous presence, grace period, EXIT      │
-└──────────────────────────────┬────────────────────────────────┘
-                                 │ attendance event
-┌──────────────────────────────▼────────────────────────────────┐
-│                ATTENDANCE PERSISTENCE / API LAYER                │
-│      Backend service(s) storing events to the database           │
-└──────────────────────────────┬────────────────────────────────┘
-                                 │ stored records
-┌──────────────────────────────▼────────────────────────────────┐
-│                  DASHBOARD / ANALYTICS LAYER                     │
-│           Review of attendance and session history               │
-└─────────────────────────────────────────────────────────────────┘
-```
+| ❌ The Problem | ✅ The Solution |
+|---|---|
+| Manual sign-in sheets, easy to skip | Automatic recognition — no action needed from members |
+| No real session-duration data | Continuous presence tracking, not just a check-in |
+| Inaccurate, unauditable records | Every ENTRY/EXIT is a logged, timestamped event |
+| Doesn't scale with membership | Same pipeline works whether it's 10 members or 200 |
 
-**A note on architectural maturity:** this project is a working prototype, not a finished, unified production system. Depending on the state of the repository at any given point, there may be more than one implementation of a given layer (for example, an older API module alongside a newer one, or a database implementation existing alongside a CSV-based one). Where that's the case in your checkout, treat the most recently modified / actively imported module as the current implementation, and treat older, unused modules as legacy until they're removed or consolidated.
+---
 
-## AI / Computer Vision Pipeline
+## ✨ Key Features
+
+- 🎥 **Real-time webcam** face detection and recognition
+- 🪪 **Registered-member matching** against a face-encoding dataset
+- 🟢 **Automatic ENTRY** detection when a known member appears
+- 🔴 **Automatic EXIT** detection after a configurable grace period
+- ⏱️ **Session-duration tracking** — not just present/absent
+- 🗄️ **Attendance persistence** to a database
+- 🔌 **Backend/API layer** connecting recognition → storage → dashboard
+- 📊 **Dashboard/analytics** for reviewing attendance history
+- ❓ **Unknown-face handling** for unrecognized visitors
+- 📝 **Event logging** across recognition and attendance actions
+
+---
+
+## 🏗️ System Architecture
 
 ```
-Dataset (registered member images)
-        ↓
-Face Detection
-        ↓
-Face Encoding  ──────► Cached Encodings
-        ↓
-Live Webcam Frame
-        ↓
-Face Matching (encoding distance)
-        ↓
-Identity Classification
-        ↓
-Attendance Event
+┌───────────────────────────────────────────────────────┐
+│  📷 CAMERA LAYER            Webcam capture (OpenCV)     │
+└───────────────────────────┬─────────────────────────┘
+                              ▼
+┌───────────────────────────────────────────────────────┐
+│  🔍 COMPUTER VISION LAYER   Face detection per frame     │
+└───────────────────────────┬─────────────────────────┘
+                              ▼
+┌───────────────────────────────────────────────────────┐
+│  🧠 RECOGNITION LAYER       Encoding + match vs. dataset │
+└───────────────────────────┬─────────────────────────┘
+                              ▼
+┌───────────────────────────────────────────────────────┐
+│  ⏱️  PRESENCE / SESSION LAYER ENTRY → grace period → EXIT │
+└───────────────────────────┬─────────────────────────┘
+                              ▼
+┌───────────────────────────────────────────────────────┐
+│  🗄️  PERSISTENCE / API LAYER  Backend stores the event   │
+└───────────────────────────┬─────────────────────────┘
+                              ▼
+┌───────────────────────────────────────────────────────┐
+│  📊 DASHBOARD / ANALYTICS   Attendance & session review  │
+└───────────────────────────────────────────────────────┘
 ```
 
-- **OpenCV** handles webcam capture and frame-level image operations.
-- **face_recognition** (built on **dlib**) performs face detection and generates 128-dimensional face encodings, both for the registered dataset and for live frames.
-- Encodings for registered members are generated once from their dataset images and can be cached, so the live-recognition loop compares against pre-computed encodings rather than re-encoding reference images on every frame.
-- A live face is matched against known encodings using a distance threshold — a lower distance means a closer match.
+> 🟡 **Honesty check:** this is a prototype, not a single unified production stack. Your checkout may contain more than one implementation of a layer (e.g. an older API module next to a newer one). Treat the actively-used module as current and the rest as legacy until consolidated.
 
-**Important distinction:** any "confidence" percentage shown in the UI is a derived, approximate display value based on match distance — it is **not** a statistically calibrated probability from a trained classifier. It should be read as "how close this match was," not as a rigorous confidence score.
+---
 
-## Presence & Session Tracking
+## 🧠 AI / Computer Vision Pipeline
 
-This is one of the more distinctive parts of the system: it tracks **presence over time**, not just a single check-in event.
+```
+Dataset (member photos) → Face Detection → Face Encoding → Cached Encodings
+                                                                    ↓
+                          Live Webcam Frame → Face Matching (distance) → Identity → Attendance Event
+```
 
-- **Attendance** = the fact that a member was recognized during a session
-- **Presence / session tracking** = continuously monitoring whether that member is still in view, so the system knows when they've actually left
+| Library | Role |
+|---|---|
+| **OpenCV** | Webcam capture, frame-level image ops |
+| **face_recognition** (`dlib`) | Face detection + 128-d face encoding, for both dataset and live frames |
+| **Encoding cache** | Member encodings computed once, reused every frame — no re-encoding reference images live |
 
-The general logic:
+> ⚠️ Any "confidence %" shown in the UI is a **derived display value from match distance**, not a calibrated classifier probability. Read it as "how close the match was," not a statistical guarantee.
 
-- A member is recognized → an **ENTRY** is recorded and a session begins
-- While the member continues to be detected, the session stays active
-- If the member briefly leaves the camera's view (e.g., steps out of frame), the system doesn't immediately end the session — it allows a **grace period**
-- If the member reappears within the grace period, the session simply continues
-- If the member does not reappear before the grace period elapses, an **EXIT** is recorded and the session's duration is calculated and persisted
+---
 
-This avoids the common failure mode of naive presence systems, where someone briefly stepping out of frame gets logged as leaving and re-entering repeatedly.
+## ⏱️ Presence & Session Tracking
 
-## Backend Architecture
+The core technical idea: **attendance** ≠ **presence**.
 
-The system is designed so that recognition/tracking logic on the camera side is decoupled from storage and presentation:
+| | |
+|---|---|
+| **Attendance** | The fact a member was recognized during a visit |
+| **Presence tracking** | Continuously watching whether they're *still* there |
 
-- The **recognition + presence-tracking process** generates attendance events (ENTRY, EXIT, session duration)
-- These events are intended to be sent to a **backend/API layer**, which is responsible for validating and persisting them
-- A **database** stores member records and attendance history
-- A **dashboard/analytics** component reads from storage to present attendance data back to users
+```
+Member recognized  →  🟢 ENTRY, session starts
+Still detected      →  session stays active
+Leaves camera view  →  ⏳ grace period starts
+Reappears in time    →  session continues (no false EXIT)
+Doesn't reappear      →  🔴 EXIT logged, duration calculated & saved
+```
 
-As noted above, the backend, database, and dashboard pieces are development-stage. Depending on what's present in your copy of the repository, some of these may be partially implemented, experimental, or represented by more than one competing approach (for instance, direct database writes from the recognition process vs. going through an API). Treat this as an area that will be consolidated over time rather than assuming a single finished data path.
+This avoids the classic false-EXIT problem where briefly stepping out of frame gets logged as leaving-and-returning repeatedly.
 
-## Database
+---
 
-Attendance data is intended to be persisted using **SQLite** via **SQLAlchemy**, with a schema built around the core entities you'd expect:
+## 🔌 Backend & Database
 
-- **Member** — identity information tying a person to their face encodings
-- **Attendance** — individual attendance/session records (entry time, exit time, duration)
+**Flow:** recognition process → attendance events (ENTRY/EXIT/duration) → **API/backend** validates → **database** persists → **dashboard** reads and displays.
 
-Exact fields, relationships, and any additional tables (e.g., project- or equipment-related entities) depend on the current state of the schema in the repository — inspect `database.py` / equivalent model definitions in your checkout for the authoritative structure.
+- **SQLite** via **SQLAlchemy** — core entities:
+  - `Member` — identity + face-encoding reference
+  - `Attendance` — entry time, exit time, session duration
 
-## Project Structure
+> 🟡 Backend/DB/dashboard components are development-stage and may include more than one competing implementation. Check `database.py` in your checkout for the authoritative schema.
 
-Based on the components described for this project, a repository following this design would generally look like:
+---
+
+## 📁 Project Structure
 
 ```
 build-club-smart-attendance/
-├── camera.py            # Webcam capture
-├── recognizer.py         # Face detection + encoding + matching
-├── tracker.py             # Presence/session tracking (ENTRY/EXIT, grace period)
-├── attendance.py         # Attendance event handling
-├── api_client.py          # Sends attendance events to the backend
-├── backend.py             # Backend/API service
-├── database.py             # SQLAlchemy models + persistence
-├── config.py               # Configuration (thresholds, timing, paths)
-├── dashboard/              # Dashboard/analytics (e.g., Streamlit app)
-├── dataset/                # Registered member face images
+├── camera.py         # Webcam capture
+├── recognizer.py       # Detection + encoding + matching
+├── tracker.py            # ENTRY/EXIT + grace period logic
+├── attendance.py          # Attendance event handling
+├── api_client.py            # Sends events to backend
+├── backend.py                 # API service
+├── database.py                  # SQLAlchemy models
+├── config.py                      # Thresholds, timing, paths
+├── dashboard/                        # Streamlit analytics app
+├── dataset/                             # Registered member photos
 ├── requirements.txt
 └── README.md
 ```
 
-> Adapt this tree to match your actual repository — file names above reflect the components described for this project, not a guaranteed 1:1 listing of every file present.
+> Adapt to your actual repo — this reflects the components described for the project, not a guaranteed exact listing.
 
-## Installation
+---
 
-**Terminal 1 — Environment setup**
+## 🚀 Installation
 
+**Terminal 1 · Environment**
 ```powershell
 python -m venv .venv
 .venv\Scripts\activate
 pip install -r requirements.txt
 ```
+> `dlib` needs a C++ build toolchain + CMake on some systems if the wheel isn't prebuilt.
 
-> `face_recognition` depends on `dlib`, which in turn requires a C++ build toolchain (and CMake) on some systems. If `pip install` fails on `dlib`, install CMake and Visual C++ Build Tools first, then retry.
-
-**Dataset setup**
-
-Populate the `dataset/` directory with images for each registered member (see [Dataset Setup](#dataset-setup)), then generate/cache their face encodings using your project's encoding step (e.g., a script such as `python encode_faces.py`, if present in your repository).
-
-**Terminal 2 — Backend / API**
-
+**Terminal 2 · Backend/API**
 ```powershell
 .venv\Scripts\activate
 python backend.py
 ```
 
-**Terminal 3 — Camera / recognition process**
-
+**Terminal 3 · Camera / recognition**
 ```powershell
 .venv\Scripts\activate
 python Main.py
 ```
 
-**Terminal 4 — Dashboard (if applicable)**
-
+**Terminal 4 · Dashboard**
 ```powershell
 .venv\Scripts\activate
 streamlit run dashboard/app.py
 ```
+> Exact filenames depend on your repo — adjust to match what's actually there.
 
-> The exact entry-point filenames and whether the backend/dashboard run as separate processes depends on your repository's structure — adjust commands to match the actual scripts present.
+---
 
-## Dataset Setup
-
-Registered members are represented as folders of face images:
+## 🗂️ Dataset Setup
 
 ```
 dataset/
@@ -263,49 +241,46 @@ dataset/
 ├── MemberName2/
 │   ├── image1.jpg
 │   └── image2.jpg
-└── ...
 ```
 
-Guidelines:
+- One folder per member · several varied photos each (lighting/angle/expression)
+- Clear, well-lit, front-facing shots encode best
+- Re-generate encodings after adding/updating photos
 
-- One folder per member, named after the member (or a member ID)
-- Several images per member, ideally with varied lighting, angle, and expression — this improves the quality of the generated encodings
-- Clear, well-lit, front-facing photos work best for encoding
-- After adding or updating images, encodings need to be (re-)generated so recognition reflects the current dataset
+---
 
-## Configuration
+## ⚙️ Configuration
 
-Typical settings for a system like this — organized by what's realistically part of `config.py` versus general recommendations:
+| Setting | Purpose |
+|---|---|
+| Recognition/match threshold | Distance cutoff for accepting a match |
+| Camera source/index | Which webcam device to use |
+| Frame resize factor | Downscale frames to cut compute cost |
+| Frame skip interval | Process every Nth frame |
+| Grace period duration | Wait time before logging EXIT |
+| Database path | Where attendance data is stored |
+| API base URL | Where events get sent |
+| Logging level | Verbosity/output |
 
-| Setting | Purpose | Type |
-|---|---|---|
-| Recognition/match threshold | Distance cutoff for accepting a face as a match | Actual config |
-| Camera source/index | Which webcam device to use | Actual config |
-| Frame resize factor | Downscale frames before processing to reduce compute cost | Actual config |
-| Frame skip interval | Process every Nth frame instead of every frame | Actual config |
-| Grace period duration | How long to wait before logging an EXIT after a member disappears | Actual config |
-| Database path/connection string | Where attendance data is persisted | Actual config |
-| API base URL | Where the camera process sends attendance events | Actual config |
-| Logging level/output | Verbosity and destination of logs | Actual config |
+> Check `config.py` for actual variable names/defaults — table above reflects the kinds of settings this system needs.
 
-> Values above describe the *kinds* of settings this system would need, based on the project description. Check `config.py` in your repository for the actual variable names and defaults currently in use.
+---
 
-## Example Attendance Flow
+## 🎬 Example Attendance Flow
 
-*(Illustrative example — exact timings depend on your configured grace period.)*
+*Illustrative — actual timings depend on your configured grace period.*
 
 ```
-10:00 → Member detected → ENTRY recorded, session starts
-10:30 → Member still visible → session continues
-10:45 → Member disappears from view
-10:45 → Grace period begins
-10:4X → Grace period elapses without member reappearing
-10:4X → EXIT recorded
-      → Session duration calculated (10:00 – 10:4X)
-      → Attendance record persisted
+10:00  →  Member detected  →  🟢 ENTRY, session starts
+10:30  →  Still visible     →  session continues
+10:45  →  Disappears          →  ⏳ grace period begins
+10:4X  →  No reappearance      →  🔴 EXIT
+       →  Duration calculated (10:00–10:4X) & saved
 ```
 
-## Tech Stack
+---
+
+## 🧰 Tech Stack
 
 | Category | Technology |
 |---|---|
@@ -320,128 +295,107 @@ Typical settings for a system like this — organized by what's realistically pa
 | Data Handling | Pandas |
 | HTTP Client | Requests |
 
-## Performance Considerations
+---
 
-Recognition performance in a system like this is shaped by several factors:
+## ⚡ Performance Considerations
 
-- **Frame resizing** — processing downscaled frames reduces the computational cost of detection/encoding
-- **Frame skipping** — running recognition on every Nth frame rather than every frame reduces load at the cost of responsiveness
-- **Encoding caching** — pre-computing and reusing member encodings avoids redundant work per frame
-- **Recognition threshold** — a tighter threshold reduces false positives but may increase false negatives, and vice versa
-- **Lighting and camera quality** — directly affect detection and encoding reliability
-- **Computational cost** — face detection and encoding are the most expensive steps in the pipeline; hardware (CPU vs. GPU-accelerated dlib builds) affects achievable frame rate
+- **Frame resizing** + **frame skipping** cut compute cost
+- **Encoding cache** avoids re-encoding reference photos every frame
+- **Threshold tuning** trades false positives vs. false negatives
+- **Lighting & camera quality** directly affect reliability
 
-**Benchmarking has not yet been formally performed.** A reasonable future methodology would measure frames-per-second, end-to-end recognition latency, and match accuracy under controlled lighting/pose conditions, using a labeled test set of known and unknown faces.
+> 🟡 **Benchmarking has not yet been formally performed.** Future methodology: FPS, end-to-end latency, and match accuracy on a labeled known/unknown test set.
 
-## Privacy & Security
+---
 
-This system processes **facial images and biometric-derived data** (face encodings), which deserves careful handling.
+## 🔒 Privacy & Security
 
-**Current implementation characteristics:**
-- Member face images are stored locally in the `dataset/` directory
-- Face encodings are generated from these images and cached locally
-- There is currently no authentication/authorization layer described for this prototype
+This system handles **biometric data** (face images + encodings) — treat it carefully.
 
-**Recommended for any production use:**
-- Restrict filesystem access to the dataset and database to authorized users only
-- Add authentication and authorization before exposing the API or dashboard beyond local/trusted use
-- Use HTTPS for any remote/networked API communication
-- Define a clear data-retention policy for face images, encodings, and attendance records
-- Consider consent and disclosure requirements for members whose biometric data is being collected, appropriate to your institution's policies and applicable law
+| Now | Recommended for production |
+|---|---|
+| Member photos stored locally in `dataset/` | Restrict filesystem access to authorized users |
+| Encodings cached locally | Add authentication/authorization before any remote exposure |
+| No auth layer in the prototype | Use HTTPS for any networked API traffic |
+| — | Define a data-retention policy for images/encodings/records |
+| — | Consider member consent per your institution's policy |
 
-*(This section is a set of engineering and privacy considerations, not legal advice. Consult your institution's policies and applicable regulations before deploying a system like this beyond a local prototype.)*
+*Not legal advice — consult your institution's policies before deploying beyond a local prototype.*
 
-## Current Status
+---
 
-This is a **working prototype**, not a finished production system.
+## ✅ Current Status
 
-- Webcam-based face recognition has been tested and successfully recognized a registered member
-- The system has generated real attendance events, including an ENTRY detection and an "attendance marked present" event for a recognized member
-- Backend/API and database components exist to connect recognition to persistence and a dashboard, but the overall pipeline should be considered development-stage rather than fully productionized
+**Working prototype**, not production-finished.
 
-## Known Limitations
+- ✔️ Webcam recognition tested — successfully recognized a registered member
+- ✔️ Real attendance events generated (ENTRY detection + "marked present")
+- 🟡 Backend/API/database exist but should be considered development-stage
 
-This implementation currently prioritizes functional prototyping and modularity. The following areas remain before production deployment:
+---
 
-- Recognition accuracy is sensitive to lighting conditions and face pose/angle
-- No formal accuracy benchmark has been conducted yet
-- The system is webcam-dependent and has not been evaluated across multiple camera types
-- No liveness/anti-spoofing detection — the system cannot currently distinguish a live person from a photo or video of them
-- No production-grade authentication or access control
-- The backend, database, and dashboard components may include more than one implementation approach that still needs to be consolidated into a single canonical path
+## ⚠️ Known Limitations
 
-## Future Roadmap
+- Sensitive to lighting conditions and face pose/angle
+- No formal accuracy benchmark yet
+- Webcam-dependent, not evaluated across camera types
+- No liveness/anti-spoofing detection
+- No production-grade authentication
+- Backend/DB may have more than one implementation path to consolidate
 
-### Phase 1 — Architecture Cleanup
-Consolidate any duplicate backend/database implementations into a single canonical data path.
+---
 
-### Phase 2 — Production Backend
-Harden the API layer for reliability, error handling, and structured logging.
+## 🗺️ Future Roadmap
 
-### Phase 3 — Authentication & Role Management
-Add authentication and role-based access control for API and dashboard access.
+| Phase | Focus |
+|---|---|
+| **1** | Architecture cleanup — consolidate duplicate backend/DB paths |
+| **2** | Production-hardened backend (error handling, structured logging) |
+| **3** | Authentication & role-based access control |
+| **4** | Liveness / anti-spoofing detection |
+| **5** | Multi-camera support |
+| **6** | Advanced makerspace analytics |
+| **7** | Cloud deployment |
+| **8** | Equipment / lab utilization analytics |
 
-### Phase 4 — Liveness / Anti-Spoofing
-Add detection to distinguish live members from photos/video replays.
+> None of the above exists yet — this is a direction, not a feature list.
 
-### Phase 5 — Multi-Camera Support
-Support multiple entry points and camera feeds simultaneously.
+---
 
-### Phase 6 — Advanced Makerspace Analytics
-Richer session and utilization analytics beyond basic attendance.
+## 🌱 Why This Project Matters
 
-### Phase 7 — Cloud Deployment
-Move from local execution to a deployable, networked service.
+This isn't just a digital sign-in sheet. Session-level presence tracking is a foundation for understanding how people actually use a shared physical space. Extended further, it could inform:
 
-### Phase 8 — Equipment / Lab Utilization Analytics
-Extend tracking beyond entry/exit into equipment and space usage patterns.
+`occupancy` · `member utilization` · `project participation` · `equipment usage`
 
-*(None of the above is currently implemented — this is a directional roadmap, not a list of existing features.)*
+All future possibilities — not current features.
 
-## Why This Project Matters
+---
 
-This isn't just an attendance sheet replacement. It's an early foundation for understanding how people actually use a shared physical space — a makerspace, lab, or collaborative workshop.
+## 🧪 Testing
 
-Basic ENTRY/EXIT and session-duration tracking is the first building block. If extended, the same underlying architecture could eventually support:
+**Validated so far:** live webcam recognition · ENTRY event generation · "marked present" event generation.
 
-- Space occupancy tracking
-- Member utilization patterns over time
-- Project-based participation tracking
-- Lab/equipment usage analytics
+No automated test suite exists yet.
 
-These are **future possibilities**, not current features — but they illustrate why session-level presence tracking (rather than simple check-in/check-out) is a meaningfully more useful foundation than a traditional attendance sheet.
+**Recommended future suite:** unit tests for match/threshold logic · state-transition tests for ENTRY→grace→EXIT · integration tests for API/DB persistence · a labeled known/unknown face set for accuracy eval.
 
-## Testing
+---
 
-**Current validation performed:**
-- Live webcam face recognition against the registered member dataset
-- Generation of a real ENTRY detection event for a recognized member
-- Generation of an "attendance marked present" event
+## 🤝 Contributing
 
-No automated test suite currently exists for this project.
-
-**Recommended Test Suite (future work):**
-- Unit tests for the matching/threshold logic
-- Unit tests for presence-tracking state transitions (ENTRY → active → grace period → EXIT)
-- Integration tests for the API/database persistence path
-- A labeled dataset of known/unknown faces for repeatable accuracy evaluation
-
-## Contributing
-
-Contributions are welcome. If you'd like to contribute:
-
-1. Fork the repository
-2. Create a feature branch for your change
+1. Fork the repo
+2. Create a feature branch
 3. Keep changes scoped and well-described
-4. Open a pull request describing what changed and why
-5. For bugs or ideas, open an issue with enough detail to reproduce or evaluate the request
+4. Open a PR describing what and why
+5. File issues with enough detail to reproduce
 
-## License
+---
 
-**License: Not yet specified.**
+## 📄 License
 
-*(Consider adding an MIT or Apache-2.0 license once you're ready to formalize usage terms.)*
+**Not yet specified.** *(Consider MIT or Apache-2.0 once ready to formalize.)*
 
-## Author / Team
+## 👥 Author / Team
 
 Built by the Build Club project team.
