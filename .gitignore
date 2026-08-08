@@ -1,0 +1,35 @@
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Python bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+
+# SQLite databases
+*.db
+
+# Face encoding cache (regenerated on first run)
+encodings/*.pkl
+
+# Runtime logs
+logs/
+
+# Uploaded files
+uploaded_proofs/
+
+# Large installers / binaries
+*.msi
+
+# Data exports
+*.csv
+
+# IDE / OS files
+.vscode/
+.idea/
+*.swp
+*.swo
+Thumbs.db
+.DS_Store
