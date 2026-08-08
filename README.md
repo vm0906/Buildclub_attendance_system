@@ -389,13 +389,3 @@ No automated test suite exists yet.
 3. Keep changes scoped and well-described
 4. Open a PR describing what and why
 5. File issues with enough detail to reproduce
-
----
-
-## 📄 License
-
-**Not yet specified.** *(Consider MIT or Apache-2.0 once ready to formalize.)*
-
-## 👥 Author / Team
-
-Built by the Build Club project team.
